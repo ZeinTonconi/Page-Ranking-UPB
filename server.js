@@ -1,5 +1,6 @@
 const axios = require("axios");
 const cheerio = require('cheerio');
+const readline = require('readline')
 
 const initRank = 1;
 
@@ -8,82 +9,103 @@ const nodes = new Set();
 const lastRank = [];
 const rank = [];
 
-const webCrawler = async () => {
+const ignore = [
+    ".pdf", ".jpg", ".jpeg",".mp4",".mp3",".doc",".docx",".rar",".png",
+    // "login", "register"
+]
 
-    const initilPage = "https://codeforces.com";
-    const host = (new URL(initilPage)).host;
-    console.log({host});
+const getURL = (url, host, protocol) => {
 
+    if(!url){
+        throw new Error("The tag <a></a> doesn't have href")
+    }
+    if (url.startsWith("http")) {
+        return (new URL(url)).href;
+    } else if (url.startsWith("/")) {
+        return (new URL(`${protocol}//${host}${url}`)).href;
+    } else {
+        return (new URL(`${protocol}//${host}/${url}`)).href;
+    }
+}
+
+const isFile = (url) => {
+    const res = ignore.find((ext) => url.includes(ext));
+    return res;
+}
+
+const webCrawler = async (start) => {
+
+    const {protocol, host} = (new URL(start));
     
 
     const queueURL = [];
     
-    queueURL.push(initilPage);
-    nodes.add(initilPage);
+    queueURL.push(start);
+    nodes.add(start);
+
+    G[start] = new Set();
 
     // const maxPage = 50;
 
+    while(
+        queueURL.length !== 0
+        // && nodes.size <= maxPage
+        ){
 
-    while(queueURL.length !== 0 ){
         const activeURL = queueURL.pop();
-
-        console.log(activeURL)
-        try {
-            
-        } catch (error) {
-            
+        G[activeURL] = new Set();
+        console.log(`Crawiling: ${activeURL}`)
+        
+        if(isFile(activeURL)){
+            continue;
         }
 
-        const htmlPage = await axios.get(activeURL);
-        const $ = cheerio.load(htmlPage.data);   
-        $("a").each((index,element) => {
-            
-            let neighbour;
-            neighbour = $(element).attr("href");
-            if(neighbour && neighbour.endsWith('/')){
-                neighbour = neighbour.replace(/.$/,'');
-            }
-            if(neighbour && neighbour.startsWith('/')){
-                neighbour = host + neighbour;
-            }
-            try {
-                const neighHost = (new URL(neighbour)).host;
-                if(neighHost === host){
+        try {   
+            const htmlPage = await axios.get(activeURL);
+            const {data} = htmlPage;
+            const $ = cheerio.load(data);   
+            $("a").each((index,element) => {
 
-                    if(!nodes.has(neighbour) ){
-                        nodes.add(neighbour);
-                        queueURL.push(neighbour);
-                    }
+                try {
+                    const edgeURL = getURL($(element).attr("href"), host, protocol);
 
-                    if(!G[activeURL]){
-                        G[activeURL]=new Set();
-                    }
-                    if(!G[activeURL].has(neighbour))   
-                        G[activeURL].add(neighbour);   
+                    if((new URL(edgeURL)).host === host){
+    
+                        if(!nodes.has(edgeURL) ){
+                            nodes.add(edgeURL);
+                            queueURL.push(edgeURL);
+                        }
+    
+                        if(!G[activeURL].has(edgeURL))   
+                            G[activeURL].add(edgeURL);   
+                    }  
+                } catch (error) {
+                    
                 }
-            } catch (error) {
                 
-            }
+                
+            })  
+        } catch (error) {
+            // console.log(error);
+            console.log(`No se pudo hacer GET a: ${activeURL}`)
+        }
 
-        }) 
     }
 
 }
 
 const dfs = (node, visited) => {
     
-
     visited[node]=1;
 
     if(!G[node])
         return;
     
-    G[node].forEach( neigh => {
-        if(!visited[neigh]){
-            //console.log(lastRank[node]);
-            dfs(neigh,visited);
+    G[node].forEach( edge => {
+        if(!visited[edge]){
+            dfs(edge,visited);
         }
-        rank[neigh] += lastRank[node]/G[node].size;
+        rank[edge] += lastRank[node]/G[node].size;
     })
 }
 
@@ -96,33 +118,93 @@ const rankPage = () => {
     const iterations = 10;
     for(let i=0;i<iterations;i++){
         const visited = [];
+    
         nodes.forEach(node => lastRank[node] = rank[node])
+    
         nodes.forEach(node => {
             if(!visited[node]){
                 dfs(node,visited);
             }
         });
     }
+    
     const ranking = [];
+    
     nodes.forEach(node => {
         ranking.push({node,rank:rank[node]});
     })
+    
     ranking.sort((pageA,pageB) => pageA.rank > pageB.rank? -1:0);
+    
     return ranking;
 }
 
-const main = async () => {
-    await webCrawler();
-    console.log("Termino el webbing");
+const showMenu = (link="") => {
+    console.log("-----------------------------------------------------------------------------------------------------------");
+    console.log("   ________     .__     /\\           _________      .__    .___          __________                __    ");
+    console.log("  \\____    /____ |__| ___)/  ______  /   _____/_____ |__| __| _/__________\\______   \\_____    ____ |  | __");
+    console.log("    /     // __ \\|  |/    \\ /  ___/  \\_____  \\\\____ \\|  |/ __ |/ __ \\_  __ \\       _/\\__  \\  /    \\|  |/ /");
+    console.log("   /     /\\  ___/|  |   |  \\\\___ \\   /        \\  |_> >  / /_/ \\  ___/|  | \\/    |   \\ / __ \\|   |  \\    < ");
+    console.log("  /_______ \\___  >__|___|  /____  > /_______  /   __/|__\\____ |\\___  >__|  |____|_  /(____  /___|  /__|_ \\");
+    console.log("          \\/   \\/        \\/     \\/          \\/|__|           \\/    \\/             \\/      \\/     \\/     \\/");
+    console.log("-----------------------------------------------------------------------------------------------------------");
+    console.log("1. Ingresar link");
+    console.log(`Link: ${link}`);
+    console.log("2. Empezar")
+    console.log("3. Salir")
+}
+
+const start = async (initPage) => {
+
+    console.log(`Start crawling: ${initPage}`);
+
+    await webCrawler(initPage);
+    console.log("Webing ended");
+
     const ranking = rankPage().slice(0,10);
     console.log("RankPage")
     console.log(ranking)
+    menu(initPage);
+}
 
-    // nodes.forEach(node => {
-    //     if(G[node] && !G[node].has("https://scrapeme.live")){
-    //         console.log({node,edge:G[node]});
-    //     }
-    // })
+
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+});
+
+const menu = (initPage="") => {
+    showMenu(initPage);
+    rl.question("Selecciona una opcion: ", (option) => {
+
+        switch (option) {
+            case '1':
+                rl.question("Ingrese el link: ",(link) => {
+                    initPage = link;
+                    menu(initPage)
+                })
+            break;
+            
+            case '2':
+                start(initPage);
+            break;
+            
+            case '3':
+                console.log("Bye :3")
+            break;
+
+            default:
+                console.log("No ingresaste una opcion correcta")
+            break;
+        }
+
+    })
+}
+
+const main =  () => {
+    menu();
+    // initPage = "https://www.coca-colacompany.com/";
+
 }
 
 
