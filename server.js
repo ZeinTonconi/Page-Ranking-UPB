@@ -4,15 +4,22 @@ const readline = require('readline')
 
 const initRank = 1;
 
-const G = [];
-const nodes = new Set();
-const lastRank = [];
-const rank = [];
+let G = [];
+let nodes = new Set();
+let lastRank = [];
+let rank = [];
 
 const ignore = [
     ".pdf", ".jpg", ".jpeg",".mp4",".mp3",".doc",".docx",".rar",".png",
     // "login", "register"
 ]
+
+const init = () => {
+    G = [];
+    nodes = new Set();
+    lastRank = [];
+    rank = [];
+}
 
 const getURL = (url, host, protocol) => {
 
@@ -45,11 +52,11 @@ const webCrawler = async (start) => {
 
     G[start] = new Set();
 
-    // const maxPage = 50;
+    //  const maxPage = 50;
 
     while(
         queueURL.length !== 0
-        // && nodes.size <= maxPage
+        //  && nodes.size <= maxPage
         ){
 
         const activeURL = queueURL.pop();
@@ -150,20 +157,34 @@ const showMenu = (link="") => {
     console.log("-----------------------------------------------------------------------------------------------------------");
     console.log("1. Ingresar link");
     console.log(`Link: ${link}`);
-    console.log("2. Empezar")
-    console.log("3. Salir")
+    console.log("2. Empezar Webcrawling")
+    console.log("3. Mostrar Ranking")
+    console.log("4. Salir")
+}
+
+
+const tableConfig = [ "Rank", "Link", "Puntaje"]
+
+const showRanking = () => {
+    const ranking = rankPage().slice(0,10);
+    const rankingTable = ranking.map((link, index) => ({
+        Rank: index+1,
+        Link: link.node,
+        Puntaje: link.rank
+    }))
+    console.table(rankingTable,tableConfig)
 }
 
 const start = async (initPage) => {
+
+    init();
 
     console.log(`Start crawling: ${initPage}`);
 
     await webCrawler(initPage);
     console.log("Webing ended");
 
-    const ranking = rankPage().slice(0,10);
-    console.log("RankPage")
-    console.log(ranking)
+    showRanking();
     menu(initPage);
 }
 
@@ -189,8 +210,16 @@ const menu = (initPage="") => {
                 start(initPage);
             break;
             
-            case '3':
+            case "3":
+                showRanking();
+                rl.question("Presione Enter para continuar...", () => {
+                    menu(initPage);
+                })
+            break
+
+            case '4':
                 console.log("Bye :3")
+                rl.close();
             break;
 
             default:
@@ -203,7 +232,6 @@ const menu = (initPage="") => {
 
 const main =  () => {
     menu();
-    // initPage = "https://www.coca-colacompany.com/";
 
 }
 
