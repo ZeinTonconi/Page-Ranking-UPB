@@ -31,6 +31,7 @@ Una vez ingresado el link debe seleccionar la opcion `2` y empezara con el webcr
 AL final del proceso mostrara el ranking y volvera al menu. Si desea volver a ver el ranking puede ingresar la opcion `3`.
 ![rankPage](/img/ranking.png)
 
+
 ## Contactos
 
 Si tiene cualquier feedback o pregunta, puede contactarsea a:
